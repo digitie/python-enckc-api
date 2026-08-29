@@ -8,7 +8,7 @@
 - [x] 동기/비동기 클라이언트 구현 (`client.py`)
 - [x] 자동 페이지네이션 순회자 (`pagination.py`)
 - [x] CLI 명령행 도구 (`cli.py`)
-- [x] 디버그 카탈로그 UI (`tools/debug_streamlit.py`)
+- [x] 디버그 카탈로그 UI (`examples/streamlit_debug_ui.py`, `src/enckc/catalog.py`, `src/enckc/debug.py`)
 - [x] 전체 단위 테스트 및 E2E 실서버 검증 (`tests/*`)
 - [x] 문서화 (`README.md`, `enckc-api.md`, `docs/*`)
 

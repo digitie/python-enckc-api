@@ -26,7 +26,7 @@
 
 - 작업 완료 기준은 "테스트가 통과한다"가 아니라 "요청된 동작이 mock 기반 테스트로 검증됨"으로 정의할 것.
 - 6개 엔드포인트 중 일부만 변경하더라도 동기/비동기/CLI 3면의 대칭성이 깨지지 않았는지 확인할 것.
-- 사용자가 명시적으로 요청하지 않은 범위(예: `tools/` Streamlit 디버그 UI)까지 손대지 말 것.
+- 사용자가 명시적으로 요청하지 않은 범위(예: `examples/` Streamlit 디버그 UI)까지 손대지 말 것.
 
 ## Practical Bias
 
@@ -78,7 +78,10 @@
 - `src/enckc/exceptions.py`: 계층적 `EnckcError` 예외 클래스
 - `src/enckc/pagination.py`: `iter_pages`, `async_iter_pages`, `has_next_page`, `next_page_no`
 - `src/enckc/cli.py`: `enckc` 명령행 도구
-- `src/enckc/debug.py`: `api_catalog`, `run_debug` 카탈로그 및 픽스처 도우미
+- `src/enckc/catalog.py`: `get_api_catalog`/`get_api_catalog_entry` API 카탈로그 및 파라미터 메타데이터
+  (`required_params`/`optional_params`), `EnckcClient.debug_fetch()`가 라우팅에 사용
+- `src/enckc/debug.py`: `DebugRun`, `jsonable`, `redact_sensitive`, `debug_error`, `save_fixture`
+  디버그 UI/픽스처 도우미
 - `src/enckc/metadata.py`: 민감 정보 마스킹 및 `ResponseMetadata`
 
 ## 작업 후 체크리스트

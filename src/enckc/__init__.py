@@ -10,6 +10,14 @@ from ._credentials import (
     load_local_env,
     normalize_api_key,
 )
+from .catalog import (
+    API_DEFINITIONS,
+    ApiDefinition,
+    ParamSpec,
+    get_api_catalog,
+    get_api_catalog_entry,
+    get_api_definition,
+)
 from .client import (
     ArticlesService,
     AsyncArticlesService,
@@ -19,11 +27,11 @@ from .client import (
     MediasService,
 )
 from .debug import (
-    ENCKC_CATALOG,
-    ApiCatalogEntry,
     DebugRun,
-    api_catalog,
-    run_debug,
+    debug_error,
+    jsonable,
+    redact_sensitive,
+    save_fixture,
 )
 from .enums import (
     EnckcEndpoint,
@@ -111,9 +119,15 @@ __all__ = [
     "redact_credentials_in_text",
     "redact_url_credentials",
     # Debug & Catalog
-    "ApiCatalogEntry",
-    "ENCKC_CATALOG",
-    "api_catalog",
+    "API_DEFINITIONS",
+    "ApiDefinition",
+    "ParamSpec",
+    "get_api_catalog",
+    "get_api_catalog_entry",
+    "get_api_definition",
     "DebugRun",
-    "run_debug",
+    "debug_error",
+    "jsonable",
+    "redact_sensitive",
+    "save_fixture",
 ]
