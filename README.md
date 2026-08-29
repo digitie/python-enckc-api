@@ -1,38 +1,50 @@
 # python-enckc-api
 
-한국학중앙연구원(AKS) **한국민족문화대백과사전**(Encyclopedia of Korean Culture, Encykorea) OpenAPI를 Python에서 쉽고 안전하게 활용하기 위한 공식 규격 기반의 비공식 클라이언트 라이브러리입니다.
+![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)
+![GPL-3.0-or-later 라이선스](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)
+![Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)
 
-`python-enckc-api`는 `enckc`라는 직관적인 import 패키지를 제공합니다. 특정 웹 프레임워크나 DB 스키마에 종속되지 않고, 한국민족문화대백과사전의 전체 항목 조회, 키워드 검색, 항목 본문 상세(EID), 미디어 목록/검색/상세(MID) 등 6개 핵심 API 엔드포인트를 완전하게 지원합니다.
+한국학중앙연구원(AKS) **한국민족문화대백과사전**(Encyclopedia of Korean Culture, Encykorea) OpenAPI를 Python에서 쉽고 안전하게 활용하기 위한 공식 규격 기반의 비공식 클라이언트 라이브러리입니다. `enckc`라는 import 패키지를 통해 전체 항목 조회, 키워드 검색, 항목 본문 상세(EID), 미디어 목록/검색/상세(MID) 등 6개 핵심 API 엔드포인트를 동기/비동기로 완전하게 지원합니다.
 
-> 세부 API 규격은 [enckc-api.md](enckc-api.md), 에이전트 개발 규칙은 [SKILL.md](SKILL.md) 및 [AGENTS.md](AGENTS.md)를 참고하세요.
-
----
-
-## 핵심 특징
-
-- **공식 OpenAPI 6종 전체 지원**:
-  1. `articles.list()`: 전체 항목 리스트 (`GET /api/articles`)
-  2. `articles.search()`: 항목 키워드 검색 (`GET /api/articles/search`)
-  3. `articles.get()`: 항목 상세 본문/각주/속성/연관자료 (`GET /api/articles/{eid}`)
-  4. `medias.list()`: 미디어 전체 목록 (`GET /api/medias`)
-  5. `medias.search()`: 미디어 키워드 검색 (`GET /api/medias/search`)
-  6. `medias.get()`: 미디어 상세 정보 (`GET /api/medias/{mid}`)
-- **동기/비동기 통합 클라이언트**: `httpx` 기반의 동기 `EnckcClient` 및 비동기 `AsyncEnckcClient` 제공 (`async with EnckcClient.aio(...)`)
-- **Pydantic v2 불변 모델**: 모든 응답 모델은 `ConfigDict(frozen=True, extra="forbid")`가 적용되어 데이터 오염을 방지하고 빠른 직렬화(`model_dump(mode="json")`) 및 역직렬화를 보장합니다.
-- **204 No Content 및 빈 결과 완벽 대응**: 존재하지 않는 항목/미디어 조회 시 204 No Content를 안전하게 `None`으로 반환하며, 빈 검색 결과도 안전하게 빈 리스트로 래핑합니다.
-- **자동 페이지네이션 순회자**: `iter_pages()`, `async_iter_pages()`, `articles.iter_all()`, `medias.iter_all()`을 통해 수만 건의 데이터를 Generator/AsyncGenerator로 손쉽게 스트리밍할 수 있습니다.
-- **인증키 보안 마스킹**: 로그, 메타데이터, 예외 객체, repr 출력 등에서 API 인증키(`X-API-Key`)를 자동으로 마스킹(`***REDACTED***`)하여 유출을 원천 방지합니다.
-- **CLI 명령행 도구**: 터미널에서 즉시 검색 및 조회가 가능한 `enckc` CLI 도구를 번들 제공합니다.
-- **Streamlit 디버그 UI**: 웹 브라우저에서 실시간으로 대백과사전을 검색하고 JSON 응답을 탐색할 수 있는 디버그 UI 도구 지원 (`tools/debug_streamlit.py`).
+최근 변경 사항은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요.
 
 ---
 
-## 시작하기
+## 제공 표면
 
-### 1단계: 인증키 발급 및 설정
+| 표면 | 진입점 | 설명 |
+|---|---|---|
+| 동기 클라이언트 | `enckc.EnckcClient` | `httpx` 기반 동기 클라이언트. `client.articles.*`, `client.medias.*` |
+| 비동기 클라이언트 | `enckc.EnckcClient.aio()` / `AsyncEnckcClient` | 동일한 파사드 구조의 비동기 클라이언트 |
+| CLI | `enckc` 명령행 도구 | 터미널에서 즉시 검색/조회 (`enckc search-articles`, `enckc article` 등) |
+| 디버그 UI | `tools/debug_streamlit.py` | Streamlit 기반 실시간 카탈로그 탐색 도구 (`dev,debug-ui` extra 필요) |
 
-1. [한국민족문화대백과사전 OpenAPI 안내 페이지](https://encykorea.aks.ac.kr/Guide/OpenApiUse)에서 OpenAPI 인증키 발급을 신청합니다.
-2. 발급받은 인증키를 환경변수 또는 `.env`/`.env.local` 파일에 저장합니다.
+## 먼저 읽을 문서
+
+| 필요한 정보 | 문서 |
+|---|---|
+| API 규격 상세 (엔드포인트/파라미터/응답 스키마) | [enckc-api.md](enckc-api.md) |
+| 에이전트 구현 불변조건 요약 | [SKILL.md](SKILL.md) |
+| 에이전트 운영 가이드 (지시 우선순위, DO NOT) | [AGENTS.md](AGENTS.md) |
+| 코드 탐색 시 참고할 핵심 규칙 요약 | [docs/agent-guide.md](docs/agent-guide.md) |
+| 전체 엔드포인트 지원 현황 | [docs/api-coverage.md](docs/api-coverage.md) |
+| 구조적 의사결정 기록 | [docs/decisions.md](docs/decisions.md) |
+| 테스트 구조 및 실행법 | [docs/testing.md](docs/testing.md) |
+| 문제 해결 가이드 (401, 204, 인코딩 등) | [docs/troubleshooting.md](docs/troubleshooting.md) |
+| 반복된 실수와 회고 | [docs/repeated-mistakes.md](docs/repeated-mistakes.md) |
+| 진행 상황 재개 메모 | [docs/resume.md](docs/resume.md) |
+| 작업 목록 | [docs/tasks.md](docs/tasks.md) |
+| 작업 일지 (역시간순) | [docs/journal.md](docs/journal.md) |
+| 기여 방법 | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| AI 에이전트 협업 지침 (코딩 표준/보안/검증) | [AI_AGENT_GUIDE.md](AI_AGENT_GUIDE.md) |
+
+---
+
+## 설치 및 인증키 설정
+
+### 1. 인증키 발급
+
+[한국민족문화대백과사전 OpenAPI 안내 페이지](https://encykorea.aks.ac.kr/Guide/OpenApiUse)에서 OpenAPI 인증키를 발급받습니다. 이 인증키는 HTTP 요청 헤더 `X-API-Key`로 전송됩니다 (`serviceKey` 쿼리파라미터 방식이 아닙니다).
 
 ```bash
 export ENCKC_API_KEY="발급받은_인증키"
@@ -48,7 +60,7 @@ $env:ENCKC_API_KEY="발급받은_인증키"
 ENCKC_API_KEY=YOUR_ENCKC_API_KEY_HERE
 ```
 
-### 2단계: 설치
+### 2. 설치
 
 ```bash
 pip install python-enckc-api
@@ -63,67 +75,26 @@ pip install -e ".[dev,debug-ui]"
 
 ## 사용 예제
 
-### 1. 동기 클라이언트 (`EnckcClient`)
-
 ```python
 from enckc import EnckcClient
 
 # .env.local 또는 환경변수에서 ENCKC_API_KEY 자동 로드
 with EnckcClient.from_env() as client:
-    # 1. 항목 검색 (예: '세종')
+    # 항목 검색 (예: '세종')
     search_result = client.articles.search(query="세종", page=1, page_size=5)
     print(f"총 검색 건수: {search_result.total_count}건")
     for item in search_result.items:
         print(f"[{item.eid}] {item.headword} ({item.origin or ''}) - {item.definition}")
 
-    # 2. 항목 상세 본문 조회 (예: 세조 E0029849)
+    # 항목 상세 본문 조회 (예: 세조 E0029849) — 존재하지 않으면 None 반환
     article = client.articles.get(eid="E0029849")
     if article:
         print(f"\n=== {article.headword} 상세 ===")
         print(f"시대: {article.era}")
-        print(f"분야: {article.field}")
-        print(f"요약: {article.summary}")
         print(f"본문 길이: {len(article.body or '')}자")
-        print(f"연관 항목 수: {len(article.related_articles)}개")
-
-    # 3. 미디어 검색 (예: '훈민정음')
-    media_result = client.medias.search(query="훈민정음", page=1, page_size=3)
-    for media in media_result.items:
-        print(f"미디어: {media.caption} ({media.media_type}) -> {media.url}")
 ```
 
-### 2. 비동기 클라이언트 (`AsyncEnckcClient`)
-
-```python
-import asyncio
-from enckc import EnckcClient
-
-
-async def main():
-    async with EnckcClient.aio_from_env() as client:
-        # 비동기 항목 검색
-        resp = await client.articles.search("한글", page=1, page_size=5)
-        print(f"한글 검색 결과: {resp.total_count}건")
-
-        # 비동기 상세 조회
-        detail = await client.articles.get("E0000002")  # 'ㄱ'
-        if detail:
-            print(f"표제어: {detail.headword}, 집필자: {detail.writer_info}")
-
-
-asyncio.run(main())
-```
-
-### 3. 대용량 데이터 스트리밍 순회 (`iter_all`)
-
-```python
-from enckc import EnckcClient
-
-with EnckcClient.from_env() as client:
-    # 검색된 모든 항목을 페이지네이션을 거쳐 하나씩 순회 (최대 50건)
-    for item in client.articles.iter_all(query="조선", page_size=20, max_items=50):
-        print(item.eid, item.headword)
-```
+위 예제는 동기 클라이언트의 핵심 흐름만 다룹니다. 비동기 클라이언트(`AsyncEnckcClient`), 대용량 스트리밍 순회(`iter_all`), 미디어 API, CLI 사용법은 [enckc-api.md](enckc-api.md)와 아래 CLI/응답 모델 절을 참고하세요.
 
 ---
 
@@ -159,18 +130,13 @@ enckc media 0bad737c-471b-4fd5-86cf-10774faeaaa7
 | `headword` | `str` | 표제어 한글 표기 (예: `세조`) |
 | `origin` | `str \| None` | 표제어 한자/원어 표기 (예: `世祖`) |
 | `field` | `str \| None` | 주제 분야 (예: `역사/조선시대사`) |
-| `primary_type` | `str \| None` | 1차 분류 유형 (예: `인물/전통 인물`) |
 | `era` | `str \| None` | 시대 구분 (예: `조선/조선 전기`) |
 | `definition` | `str \| None` | 항목 정의문 |
-| `summary` | `str \| None` | 요약 해설 |
 | `body` | `str \| None` | 상세 본문 (Markdown 포맷) |
-| `foot_note` | `str \| None` | 각주 설명 |
-| `reference` | `str \| None` | 참고문헌 |
-| `writer_info` | `str \| None` | 집필자 정보 (소속, 전공 등) |
-| `article_aliases` | `list[ArticleAlias]` | 이칭/자/호/시호 등 별칭 목록 |
-| `article_attributes` | `list[ArticleAttribute]` | 구조화 속성 목록 (출생/사망, 본관 등) |
 | `related_articles` | `list[RelatedArticle]` | 본문 연관 백과사전 항목 목록 |
 | `related_medias` | `list[MediaItem]` | 연관 미디어 목록 |
+
+전체 필드 목록은 [enckc-api.md](enckc-api.md)를 참고하세요.
 
 ### `MediaItem` / `MediaDetail`
 
@@ -180,8 +146,6 @@ enckc media 0bad737c-471b-4fd5-86cf-10774faeaaa7
 | `media_type` | `str \| None` | 미디어 구분 (`사진`, `도면`, `음원` 등) |
 | `kogl_type` | `str \| None` | 공공누리 라이선스 유형 (`KOGL1` ~ `KOGL4`) |
 | `url` | `str \| None` | 원본 이미지/미디어 다운로드 URL |
-| `caption` | `str \| None` | 캡션 / 제목 |
-| `description` | `str \| None` | 미디어 상세 설명 |
 | `copyright_display` | `str \| None` | 저작권 표기 정보 |
 
 ---
@@ -207,7 +171,46 @@ streamlit run tools/debug_streamlit.py
 
 ---
 
-## 라이선스
+## 검증
 
-이 프로젝트는 GNU General Public License v3.0 or later (GPL-3.0-or-later) 라이선스를 따릅니다.
-제공되는 한국민족문화대백과사전 데이터의 저작권은 한국학중앙연구원(The Academy of Korean Studies)에 있습니다.
+```bash
+# 기본 품질 게이트 (네트워크 호출 없음)
+python -m pytest -q
+python -m ruff check .
+python -m mypy src/enckc
+
+# 실제 API E2E 통합 테스트 (ENCKC_API_KEY 필요)
+python -m pytest -m integration -v
+```
+
+---
+
+## 데이터 및 API 출처
+
+이 라이브러리가 감싸는 데이터와 API는 한국학중앙연구원(The Academy of Korean Studies)이 제공하는 [한국민족문화대백과사전 OpenAPI](https://encykorea.aks.ac.kr/Guide/OpenApiUse)이며, 기본 엔드포인트는 `https://devin.aks.ac.kr:8080/api`입니다.
+
+---
+
+## 디렉터리 개요
+
+| 경로 | 설명 |
+|---|---|
+| `src/enckc/` | 패키지 소스 코드 (`client.py`, `models.py`, `_http.py`, `_credentials.py`, `exceptions.py`, `pagination.py`, `cli.py`, `debug.py`, `metadata.py`) |
+| `tests/` | 단위 및 통합 테스트 스위트 |
+| `tools/` | Streamlit 디버그 UI (`debug_streamlit.py`) |
+| `docs/` | 설계 결정, 테스트/문제해결 가이드, 작업 일지 |
+
+---
+
+## 문서/기여 규칙
+
+- 모든 문서는 한글로 작성합니다. 코드 식별자, API 필드명, 명령어, URL, provider 원문 용어만 예외입니다.
+- 문서의 파일 위치 정보는 항상 프로젝트 루트 기준 상대 경로로 작성합니다 (로컬 절대 경로 금지).
+- 사용자 가시 변경 시 `CHANGELOG.md`를 갱신합니다.
+- 브랜치/PR 규칙과 개발 환경 설정은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
+
+---
+
+## 라이선스 및 법적 고지
+
+이 저장소의 코드는 GNU General Public License v3.0 or later (GPL-3.0-or-later) 라이선스를 따릅니다. 이 라이선스는 **이 저장소의 코드에만** 적용되며, 이 라이브러리가 감싸는 한국민족문화대백과사전 데이터 및 API의 이용은 한국학중앙연구원(The Academy of Korean Studies)이 정한 [OpenAPI 이용약관](https://encykorea.aks.ac.kr/Guide/OpenApiUse)을 따릅니다. 해당 데이터의 저작권은 한국학중앙연구원에 있으며, 이 프로젝트는 정부/공공기관 API에 대한 비공식 래퍼로서 원본 API의 가용성, 정확성, 지속성에 대해 어떠한 보증도 하지 않고 법적 효력을 보장하지 않습니다.
