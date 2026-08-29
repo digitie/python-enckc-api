@@ -21,7 +21,8 @@
 - `iter_pages`, `async_iter_pages`, `iter_all` 자동 페이지네이션 순회자
 - 204 No Content 안전 처리 (`get()` 호출 시 `None` 반환)
 - `enckc` CLI 명령행 도구 지원
-- `tools/debug_streamlit.py` 실시간 디버그 카탈로그 UI
+- `examples/streamlit_debug_ui.py` 실시간 디버그 카탈로그 UI (카탈로그 파라미터 메타데이터로
+  폼 자동 생성, `EnckcClient.debug_fetch()` 제네릭 라우팅, 6개 탭, fixture 저장)
 - 계층적 예외(`EnckcError`, `EnckcAuthError`, `EnckcNotFoundError` 등)
 - 인증키 자동 정규화 및 보안 마스킹
 

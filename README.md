@@ -17,7 +17,7 @@
 | 동기 클라이언트 | `enckc.EnckcClient` | `httpx` 기반 동기 클라이언트. `client.articles.*`, `client.medias.*` |
 | 비동기 클라이언트 | `enckc.EnckcClient.aio()` / `AsyncEnckcClient` | 동일한 파사드 구조의 비동기 클라이언트 |
 | CLI | `enckc` 명령행 도구 | 터미널에서 즉시 검색/조회 (`enckc search-articles`, `enckc article` 등) |
-| 디버그 UI | `tools/debug_streamlit.py` | Streamlit 기반 실시간 카탈로그 탐색 도구 (`dev,debug-ui` extra 필요) |
+| 디버그 UI | `examples/streamlit_debug_ui.py` | Streamlit 기반 실시간 카탈로그 탐색 도구 (`debug-ui` extra 필요) |
 
 ## 먼저 읽을 문서
 
@@ -165,8 +165,14 @@ EnckcError (기본 예외)
 
 ## 디버그 UI 실행
 
+카탈로그(`enckc.get_api_catalog()`)의 `required_params`/`optional_params` 메타데이터로 입력
+폼을 자동 생성하고, `EnckcClient.debug_fetch()`로 요청을 실행해 Raw Response/Pydantic
+Model/Processed Result/Validation Errors/Debug Trace/Fixture 저장까지 6개 탭에서 확인할 수
+있습니다.
+
 ```bash
-streamlit run tools/debug_streamlit.py
+pip install -e ".[debug-ui]"
+streamlit run examples/streamlit_debug_ui.py
 ```
 
 ---
@@ -195,9 +201,9 @@ python -m pytest -m integration -v
 
 | 경로 | 설명 |
 |---|---|
-| `src/enckc/` | 패키지 소스 코드 (`client.py`, `models.py`, `_http.py`, `_credentials.py`, `exceptions.py`, `pagination.py`, `cli.py`, `debug.py`, `metadata.py`) |
+| `src/enckc/` | 패키지 소스 코드 (`client.py`, `models.py`, `_http.py`, `_credentials.py`, `exceptions.py`, `pagination.py`, `cli.py`, `catalog.py`, `debug.py`, `metadata.py`) |
 | `tests/` | 단위 및 통합 테스트 스위트 |
-| `tools/` | Streamlit 디버그 UI (`debug_streamlit.py`) |
+| `examples/` | Streamlit 디버그 UI (`streamlit_debug_ui.py`) |
 | `docs/` | 설계 결정, 테스트/문제해결 가이드, 작업 일지 |
 
 ---
