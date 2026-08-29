@@ -1,32 +1,64 @@
 # AGENTS.md
 
+## 목표
+
+`python-enckc-api`는 한국학중앙연구원(AKS) 한국민족문화대백과사전(Encykorea) OpenAPI를 위한 Python 클라이언트입니다. import package 이름은 `enckc`이며, `httpx` 기반 동기(`EnckcClient`)/비동기(`AsyncEnckcClient`) 클라이언트, 불변 Pydantic v2 응답 모델, 자동 페이지네이션 순회자, `enckc` CLI를 제공합니다. 세부 API 명세는 `enckc-api.md`, 구현 불변조건은 `SKILL.md`, 아키텍처 결정은 `docs/decisions.md`를 함께 확인합니다.
+
+## Think Before Coding
+
+- 변경 전 `enckc-api.md`(API 규격)와 `docs/decisions.md`(ADR)를 확인해 기존 계약을 깨지 않는지 확인할 것.
+- 동기/비동기 두 클라이언트에 동시에 영향을 주는 변경인지 `client.py`의 대칭 구조를 기준으로 먼저 파악할 것.
+- 204 No Content, 빈 검색 결과, 스키마 검증 실패 등 이미 합의된 엣지케이스 처리 방식을 재확인 없이 바꾸지 말 것.
+
+## Simplicity First
+
+- `client.articles.*` / `client.medias.*` 파사드 구조를 유지하고, 단순 전달용 wrapper/adapter 계층을 추가하지 말 것.
+- `httpx`, `pydantic`의 역할을 대체하지 않는 새 런타임 의존성은 추가하지 말 것.
+- 응답 모델은 frozen Pydantic v2 모델을 그대로 확장하고, 별도 직렬화 레이어를 만들지 말 것.
+
+## Surgical Changes
+
+- 한 PR/커밋은 하나의 엔드포인트 또는 하나의 관심사(동기 vs 비동기, 클라이언트 vs CLI)에 집중할 것.
+- `src/enckc/metadata.py`의 인증키 마스킹처럼 보안에 관련된 코드는 최소한으로, 의도가 드러나게 수정할 것.
+- 관련 없는 포맷팅/리네이밍을 실제 기능 변경과 같은 커밋에 섞지 말 것.
+
+## Goal-Driven Execution
+
+- 작업 완료 기준은 "테스트가 통과한다"가 아니라 "요청된 동작이 mock 기반 테스트로 검증됨"으로 정의할 것.
+- 6개 엔드포인트 중 일부만 변경하더라도 동기/비동기/CLI 3면의 대칭성이 깨지지 않았는지 확인할 것.
+- 사용자가 명시적으로 요청하지 않은 범위(예: `tools/` Streamlit 디버그 UI)까지 손대지 말 것.
+
+## Practical Bias
+
+- API 응답 스키마가 예고 없이 바뀔 수 있다는 전제로, 파싱 실패는 `EnckcParseError`로 통일해 노출하고 원본 예외를 삼키지 말 것.
+- 확신이 서지 않는 실제 API 동작은 `integration` 마커 테스트로 실서버 검증하되, 기본 테스트 스위트에는 포함하지 말 것.
+- 현재 6개 엔드포인트 범위를 넘는 이론적 추상화(플러그인 시스템 등)는 만들지 말 것.
+
 ## 문서 언어 정책
 
 이 저장소의 모든 Markdown/RST 문서는 한글로 작성합니다. 공식 API 필드명, 코드 식별자, 명령어, URL, provider 원문처럼 그대로 보존해야 하는 값만 영어를 유지합니다. 새 문서나 기존 문서를 수정할 때도 이 규칙을 우선합니다.
 
-## 역할
+## 식별자 표
 
-이 문서는 `python-enckc-api` 저장소에서 작업하는 에이전트를 위한 운영 가이드입니다. import package는 `enckc`이며, 세부 API 명세는 `enckc-api.md`, 구현 불변조건은 `SKILL.md`, 아키텍처 결정은 `docs/decisions.md`를 함께 확인합니다.
+이름이 여러 개 혼재하므로 참고합니다.
 
-## 지시 우선순위
-
-1. 사용자 요청
-2. 이 `AGENTS.md`
-3. `SKILL.md`
-4. `enckc-api.md`, `docs/decisions.md`, `docs/api-coverage.md`
-5. `README.md` 및 나머지 `docs/`
-6. 기존 코드와 테스트
-7. 최소한의 되돌릴 수 있는 가정
+| 이름 종류 | 값 |
+|---|---|
+| PyPI 배포명 | `python-enckc-api` |
+| import 패키지명 | `enckc` |
+| GitHub 저장소 | `digitie/python-enckc-api` |
+| 환경변수 prefix | `ENCKC_` (예: `ENCKC_API_KEY`) |
 
 ## 프로젝트 기준
 
-- `python-enckc-api`는 한국학중앙연구원 한국민족문화대백과사전(Encykorea) OpenAPI용 Python 클라이언트이며 import package 이름은 `enckc`입니다.
 - 기본 API 엔드포인트 URL은 `https://devin.aks.ac.kr:8080/api`입니다.
-- 인증 방식은 HTTP Header `X-API-Key`입니다.
+- 인증 방식은 HTTP 요청 헤더 `X-API-Key`이며, 쿼리파라미터(`serviceKey`) 방식이 아닙니다.
 - Python 지원 기준은 3.10 이상입니다.
-- 런타임 의존성은 `httpx`, `pydantic`입니다.
-- 기본 단위 테스트는 실제 Encykorea 네트워크 호출 없이 mock/fixture 기반으로 동작해야 합니다.
-- 실제 API 테스트는 `integration` pytest marker를 사용합니다.
+- 기본 단위 테스트는 실제 Encykorea 네트워크 호출 없이 mock/fixture 기반으로 동작해야 합니다. 실제 API 테스트는 `integration` pytest marker를 사용합니다.
+
+## 지시 우선순위
+
+사용자 요청 > `AGENTS.md` > `README.md`/기존 테스트
 
 ## 절대 하지 말 것 (DO NOT)
 
@@ -58,7 +90,7 @@
 - [ ] `docs/resume.md`의 진척도 갱신
 - [ ] 사용자 가시 변경 시 `CHANGELOG.md` 갱신
 
-## 검증 명령어
+## 검증
 
 ```bash
 # 기본 품질 게이트
