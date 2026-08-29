@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from typing import Any, TypeVar
+from urllib.parse import quote
 
 import httpx
+from pydantic import BaseModel, ValidationError
 
 from ._credentials import ENCKC_ENV_NAMES, first_env_value, normalize_api_key
 from ._http import (
@@ -16,7 +18,7 @@ from ._http import (
     raise_for_enckc_http_error,
     raise_for_enckc_network_error,
 )
-from .exceptions import EnckcParseError
+from .exceptions import EnckcNotFoundError, EnckcParseError
 from .metadata import make_response_metadata
 from .models import (
     ArticleDetail,
@@ -29,6 +31,20 @@ from .pagination import async_iter_pages, iter_pages
 
 DEFAULT_BASE_URL = "https://devin.aks.ac.kr:8080/api"
 T = TypeVar("T")
+ModelT = TypeVar("ModelT", bound=BaseModel)
+
+
+def _validate_or_raise(model: type[ModelT], payload: dict[str, Any], *, endpoint: str) -> ModelT:
+    """응답 페이로드를 모델로 검증하고, 실패 시 EnckcParseError로 변환합니다."""
+    try:
+        return model.model_validate(payload)
+    except ValidationError as exc:
+        raise EnckcParseError(
+            str(exc),
+            endpoint=endpoint,
+            failure_kind="parse",
+            retryable=False,
+        ) from exc
 
 
 class EnckcClient:
@@ -58,9 +74,9 @@ class EnckcClient:
         self.closed = False
 
     @classmethod
-    def from_env(cls, name: str = "ENCKC_API_KEY", **kwargs: Any) -> EnckcClient:
+    def from_env(cls, name: str | None = None, **kwargs: Any) -> EnckcClient:
         """환경변수 또는 `.env`/`.env.local`에서 인증키를 읽어 클라이언트를 생성합니다."""
-        names = ENCKC_ENV_NAMES if name == "ENCKC_API_KEY" else (name, *ENCKC_ENV_NAMES)
+        names = ENCKC_ENV_NAMES if name is None else (name,)
         api_key = first_env_value(names)
         return cls(api_key=api_key, **kwargs)
 
@@ -70,9 +86,9 @@ class EnckcClient:
         return AsyncEnckcClient(api_key=api_key, **kwargs)
 
     @classmethod
-    def aio_from_env(cls, name: str = "ENCKC_API_KEY", **kwargs: Any) -> AsyncEnckcClient:
+    def aio_from_env(cls, name: str | None = None, **kwargs: Any) -> AsyncEnckcClient:
         """환경변수에서 인증키를 읽어 `AsyncEnckcClient`를 생성합니다."""
-        names = ENCKC_ENV_NAMES if name == "ENCKC_API_KEY" else (name, *ENCKC_ENV_NAMES)
+        names = ENCKC_ENV_NAMES if name is None else (name,)
         api_key = first_env_value(names)
         return AsyncEnckcClient(api_key=api_key, **kwargs)
 
@@ -159,14 +175,15 @@ class EnckcClient:
                 timeout=self.timeout,
                 retries=self.retries,
             )
-            # 204 No Content 대응
-            if resp.status_code == 204 or not resp.content.strip():
-                return None, 204
-            return resp.json(), resp.status_code
         except httpx.HTTPStatusError as exc:
             raise_for_enckc_http_error(exc, endpoint=path, label="Encykorea")
         except httpx.RequestError:
             raise_for_enckc_network_error(endpoint=path, label="Encykorea")
+        # 204 No Content 대응
+        if resp.status_code == 204 or not resp.content.strip():
+            return None, 204
+        try:
+            return resp.json(), resp.status_code
         except Exception as exc:
             raise EnckcParseError(
                 f"Failed to parse Encykorea response as JSON: {exc}",
@@ -203,7 +220,9 @@ class ArticlesService:
             endpoint="/articles",
             request_params=params,
         )
-        return PaginatedResponse[ArticleListItem].model_validate({**raw, "metadata": metadata})
+        return _validate_or_raise(
+            PaginatedResponse[ArticleListItem], {**raw, "metadata": metadata}, endpoint="/articles"
+        )
 
     def search(
         self, query: str, *, page: int = 1, page_size: int = 20
@@ -228,7 +247,11 @@ class ArticlesService:
             endpoint="/articles/search",
             request_params=params,
         )
-        return PaginatedResponse[ArticleListItem].model_validate({**raw, "metadata": metadata})
+        return _validate_or_raise(
+            PaginatedResponse[ArticleListItem],
+            {**raw, "metadata": metadata},
+            endpoint="/articles/search",
+        )
 
     def get(self, eid: str) -> ArticleDetail | None:
         """항목 EID(예: 'E0029849')로 상세 내용을 조회합니다. 존재하지 않으면 None을 반환합니다.
@@ -236,8 +259,11 @@ class ArticlesService:
         `GET /articles/{eid}`
         """
         cleaned_eid = eid.strip()
-        path = f"/articles/{cleaned_eid}"
-        raw, status = self._client._request_raw(path)
+        path = f"/articles/{quote(cleaned_eid, safe='')}"
+        try:
+            raw, status = self._client._request_raw(path)
+        except EnckcNotFoundError:
+            return None
         if raw is None or status == 204:
             return None
         metadata = make_response_metadata(
@@ -245,7 +271,9 @@ class ArticlesService:
             endpoint=path,
             request_params={"eid": cleaned_eid},
         )
-        return ArticleDetail.model_validate({**raw, "raw": raw, "metadata": metadata})
+        return _validate_or_raise(
+            ArticleDetail, {**raw, "raw": raw, "metadata": metadata}, endpoint=path
+        )
 
     def iter_all(
         self,
@@ -304,7 +332,9 @@ class MediasService:
             endpoint="/medias",
             request_params=params,
         )
-        return PaginatedResponse[MediaItem].model_validate({**raw, "metadata": metadata})
+        return _validate_or_raise(
+            PaginatedResponse[MediaItem], {**raw, "metadata": metadata}, endpoint="/medias"
+        )
 
     def search(
         self, query: str, *, page: int = 1, page_size: int = 20
@@ -329,7 +359,11 @@ class MediasService:
             endpoint="/medias/search",
             request_params=params,
         )
-        return PaginatedResponse[MediaItem].model_validate({**raw, "metadata": metadata})
+        return _validate_or_raise(
+            PaginatedResponse[MediaItem],
+            {**raw, "metadata": metadata},
+            endpoint="/medias/search",
+        )
 
     def get(self, mid: str) -> MediaDetail | None:
         """미디어 MID로 상세 내용을 조회합니다. 존재하지 않으면 None을 반환합니다.
@@ -337,8 +371,11 @@ class MediasService:
         `GET /medias/{mid}`
         """
         cleaned_mid = mid.strip()
-        path = f"/medias/{cleaned_mid}"
-        raw, status = self._client._request_raw(path)
+        path = f"/medias/{quote(cleaned_mid, safe='')}"
+        try:
+            raw, status = self._client._request_raw(path)
+        except EnckcNotFoundError:
+            return None
         if raw is None or status == 204:
             return None
         metadata = make_response_metadata(
@@ -346,7 +383,9 @@ class MediasService:
             endpoint=path,
             request_params={"mid": cleaned_mid},
         )
-        return MediaDetail.model_validate({**raw, "raw": raw, "metadata": metadata})
+        return _validate_or_raise(
+            MediaDetail, {**raw, "raw": raw, "metadata": metadata}, endpoint=path
+        )
 
     def iter_all(
         self,
@@ -404,7 +443,9 @@ class AsyncArticlesService:
             endpoint="/articles",
             request_params=params,
         )
-        return PaginatedResponse[ArticleListItem].model_validate({**raw, "metadata": metadata})
+        return _validate_or_raise(
+            PaginatedResponse[ArticleListItem], {**raw, "metadata": metadata}, endpoint="/articles"
+        )
 
     async def search(
         self, query: str, *, page: int = 1, page_size: int = 20
@@ -426,13 +467,20 @@ class AsyncArticlesService:
             endpoint="/articles/search",
             request_params=params,
         )
-        return PaginatedResponse[ArticleListItem].model_validate({**raw, "metadata": metadata})
+        return _validate_or_raise(
+            PaginatedResponse[ArticleListItem],
+            {**raw, "metadata": metadata},
+            endpoint="/articles/search",
+        )
 
     async def get(self, eid: str) -> ArticleDetail | None:
         """비동기로 항목 상세 내용을 조회합니다."""
         cleaned_eid = eid.strip()
-        path = f"/articles/{cleaned_eid}"
-        raw, status = await self._client._arequest_raw(path)
+        path = f"/articles/{quote(cleaned_eid, safe='')}"
+        try:
+            raw, status = await self._client._arequest_raw(path)
+        except EnckcNotFoundError:
+            return None
         if raw is None or status == 204:
             return None
         metadata = make_response_metadata(
@@ -440,7 +488,9 @@ class AsyncArticlesService:
             endpoint=path,
             request_params={"eid": cleaned_eid},
         )
-        return ArticleDetail.model_validate({**raw, "raw": raw, "metadata": metadata})
+        return _validate_or_raise(
+            ArticleDetail, {**raw, "raw": raw, "metadata": metadata}, endpoint=path
+        )
 
     async def iter_all(
         self,
@@ -496,7 +546,9 @@ class AsyncMediasService:
             endpoint="/medias",
             request_params=params,
         )
-        return PaginatedResponse[MediaItem].model_validate({**raw, "metadata": metadata})
+        return _validate_or_raise(
+            PaginatedResponse[MediaItem], {**raw, "metadata": metadata}, endpoint="/medias"
+        )
 
     async def search(
         self, query: str, *, page: int = 1, page_size: int = 20
@@ -518,13 +570,20 @@ class AsyncMediasService:
             endpoint="/medias/search",
             request_params=params,
         )
-        return PaginatedResponse[MediaItem].model_validate({**raw, "metadata": metadata})
+        return _validate_or_raise(
+            PaginatedResponse[MediaItem],
+            {**raw, "metadata": metadata},
+            endpoint="/medias/search",
+        )
 
     async def get(self, mid: str) -> MediaDetail | None:
         """비동기로 미디어 상세 내용을 조회합니다."""
         cleaned_mid = mid.strip()
-        path = f"/medias/{cleaned_mid}"
-        raw, status = await self._client._arequest_raw(path)
+        path = f"/medias/{quote(cleaned_mid, safe='')}"
+        try:
+            raw, status = await self._client._arequest_raw(path)
+        except EnckcNotFoundError:
+            return None
         if raw is None or status == 204:
             return None
         metadata = make_response_metadata(
@@ -532,7 +591,9 @@ class AsyncMediasService:
             endpoint=path,
             request_params={"mid": cleaned_mid},
         )
-        return MediaDetail.model_validate({**raw, "raw": raw, "metadata": metadata})
+        return _validate_or_raise(
+            MediaDetail, {**raw, "raw": raw, "metadata": metadata}, endpoint=path
+        )
 
     async def iter_all(
         self,
@@ -591,8 +652,8 @@ class AsyncEnckcClient:
         self.closed = False
 
     @classmethod
-    def from_env(cls, name: str = "ENCKC_API_KEY", **kwargs: Any) -> AsyncEnckcClient:
-        names = ENCKC_ENV_NAMES if name == "ENCKC_API_KEY" else (name, *ENCKC_ENV_NAMES)
+    def from_env(cls, name: str | None = None, **kwargs: Any) -> AsyncEnckcClient:
+        names = ENCKC_ENV_NAMES if name is None else (name,)
         api_key = first_env_value(names)
         return cls(api_key=api_key, **kwargs)
 
@@ -637,7 +698,7 @@ class AsyncEnckcClient:
     async def get_media(self, mid: str) -> MediaDetail | None:
         return await self.medias.get(mid=mid)
 
-    def async_iter_pages(
+    def iter_pages(
         self,
         afunc: Callable[..., Awaitable[PaginatedResponse[T]]],
         *args: Any,
@@ -677,13 +738,14 @@ class AsyncEnckcClient:
                 timeout=self.timeout,
                 retries=self.retries,
             )
-            if resp.status_code == 204 or not resp.content.strip():
-                return None, 204
-            return resp.json(), resp.status_code
         except httpx.HTTPStatusError as exc:
             raise_for_enckc_http_error(exc, endpoint=path, label="Encykorea")
         except httpx.RequestError:
             raise_for_enckc_network_error(endpoint=path, label="Encykorea")
+        if resp.status_code == 204 or not resp.content.strip():
+            return None, 204
+        try:
+            return resp.json(), resp.status_code
         except Exception as exc:
             raise EnckcParseError(
                 f"Failed to parse Encykorea response as JSON: {exc}",

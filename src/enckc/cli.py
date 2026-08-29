@@ -10,6 +10,7 @@ from dataclasses import asdict, is_dataclass
 from typing import Any
 
 from .client import EnckcClient
+from .exceptions import EnckcError
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -77,6 +78,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
+    if args.api_key:
+        print(
+            "Warning: --api-key exposes your API key in shell history and process "
+            "listings; prefer the ENCKC_API_KEY environment variable or .env file.",
+            file=sys.stderr,
+        )
+
     client = (
         EnckcClient(api_key=args.api_key, base_url=args.base_url)
         if args.api_key
@@ -133,6 +141,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         return 0
+    except EnckcError as exc:
+        print(json.dumps({"error": str(exc), **exc.metadata}, ensure_ascii=False, indent=2))
+        return 1
     finally:
         client.close()
 

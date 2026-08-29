@@ -20,11 +20,23 @@ RETRY_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 DEFAULT_USER_AGENT = "python-enckc-api/0.1.0 (https://github.com/digitie/python-enckc-api)"
 
 
-def _backoff_with_jitter(backoff_factor: float, attempt: int) -> float:
+def _backoff_with_jitter(backoff_factor: float, attempt: int, max_backoff: float = 30.0) -> float:
     """동등 지터를 적용한 지수 백오프 대기 시간을 계산합니다."""
-    base = backoff_factor * (2**attempt)
+    base = min(backoff_factor * (2**attempt), max_backoff)
     half = base / 2
     return float(half + random.uniform(0, half))
+
+
+def _retry_after_seconds(response: httpx.Response | None) -> float | None:
+    if response is None:
+        return None
+    value = response.headers.get("Retry-After")
+    if value is None:
+        return None
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        return None
 
 
 def raise_for_enckc_http_error(
@@ -104,7 +116,7 @@ def build_client(*, headers: dict[str, str] | None = None) -> httpx.Client:
     default_headers = {"User-Agent": DEFAULT_USER_AGENT}
     if headers:
         default_headers.update(headers)
-    return httpx.Client(follow_redirects=True, headers=default_headers)
+    return httpx.Client(follow_redirects=False, headers=default_headers)
 
 
 def build_async_client(*, headers: dict[str, str] | None = None) -> httpx.AsyncClient:
@@ -112,7 +124,7 @@ def build_async_client(*, headers: dict[str, str] | None = None) -> httpx.AsyncC
     default_headers = {"User-Agent": DEFAULT_USER_AGENT}
     if headers:
         default_headers.update(headers)
-    return httpx.AsyncClient(follow_redirects=True, headers=default_headers)
+    return httpx.AsyncClient(follow_redirects=False, headers=default_headers)
 
 
 def get_with_retries(
@@ -130,6 +142,7 @@ def get_with_retries(
     attempts = max(1, retries + 1)
     last_exc: httpx.HTTPError | None = None
     for attempt in range(attempts):
+        retry_after: float | None = None
         try:
             response = client.get(url, params=params, headers=headers, timeout=timeout)
             response.raise_for_status()
@@ -138,11 +151,14 @@ def get_with_retries(
             if not _should_retry_status(exc) or attempt >= attempts - 1:
                 raise
             last_exc = exc
+            retry_after = _retry_after_seconds(exc.response)
         except httpx.RequestError as exc:
             if attempt >= attempts - 1:
                 raise
             last_exc = exc
-        time.sleep(_backoff_with_jitter(backoff_factor, attempt))
+        if retry_after is None:
+            retry_after = _backoff_with_jitter(backoff_factor, attempt)
+        time.sleep(retry_after)
 
     if last_exc is not None:  # pragma: no cover
         raise last_exc
@@ -164,6 +180,7 @@ async def async_get_with_retries(
     attempts = max(1, retries + 1)
     last_exc: httpx.HTTPError | None = None
     for attempt in range(attempts):
+        retry_after: float | None = None
         try:
             response = await client.get(url, params=params, headers=headers, timeout=timeout)
             response.raise_for_status()
@@ -172,11 +189,14 @@ async def async_get_with_retries(
             if not _should_retry_status(exc) or attempt >= attempts - 1:
                 raise
             last_exc = exc
+            retry_after = _retry_after_seconds(exc.response)
         except httpx.RequestError as exc:
             if attempt >= attempts - 1:
                 raise
             last_exc = exc
-        await asyncio.sleep(_backoff_with_jitter(backoff_factor, attempt))
+        if retry_after is None:
+            retry_after = _backoff_with_jitter(backoff_factor, attempt)
+        await asyncio.sleep(retry_after)
 
     if last_exc is not None:  # pragma: no cover
         raise last_exc
