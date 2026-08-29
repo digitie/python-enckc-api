@@ -24,3 +24,13 @@
 - `tools/debug_streamlit.py` 실시간 디버그 카탈로그 UI
 - 계층적 예외(`EnckcError`, `EnckcAuthError`, `EnckcNotFoundError` 등)
 - 인증키 자동 정규화 및 보안 마스킹
+
+### 수정
+- 4인 전문 리뷰어 서브에이전트의 적대적 코드 리뷰(첫 리뷰 패스)로 발견·검증된 버그 수정:
+  `iter_pages()`/`async_iter_pages()`가 서버가 echo하는 `pageNo`를 신뢰해 다음 페이지를 계산하다가
+  틀린 값이 오면 같은 페이지를 최대 `max_pages`번 반복 요청하며(전체 7만여 건 중 극히 일부만
+  처리) 서로 다른 페이지인 것처럼 반환하던 문제(로컬에서 추적한 페이지 번호를 우선하도록 수정),
+  응답 스키마 검증 실패(`pydantic.ValidationError`, 예: API가 필드를 추가하거나 HTTP 200 오류
+  envelope가 온 경우)가 문서화된 `EnckcError` 계층을 우회해 처리되지 않은 예외로 새던 문제(공용
+  `_validate_or_raise()` 헬퍼로 `EnckcParseError`로 통일). GitHub Actions CI(`lint`/`typecheck`/
+  `test`) 추가.

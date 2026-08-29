@@ -2,6 +2,18 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
+FailureKind = Literal[
+    "not_found",
+    "auth",
+    "server",
+    "rate_limit",
+    "request",
+    "network",
+    "parse",
+]
+
 
 class EnckcError(Exception):
     """모든 `enckc` 예외의 기본 클래스."""
@@ -13,7 +25,7 @@ class EnckcError(Exception):
         provider: str = "encykorea",
         endpoint: str | None = None,
         status_code: int | None = None,
-        failure_kind: str | None = None,
+        failure_kind: FailureKind | None = None,
         retryable: bool | None = None,
     ) -> None:
         super().__init__(message)

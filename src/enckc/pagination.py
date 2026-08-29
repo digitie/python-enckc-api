@@ -18,10 +18,15 @@ def has_next_page(response: PaginatedResponse[Any] | Mapping[str, Any]) -> bool:
         page_no = response.page_no
         page_size = response.page_size
         total_count = response.total_count
+        if not response.items:
+            return False
     else:
         page_no = _int_from_dict(response, "pageNo", default=1)
         page_size = _int_from_dict(response, "pageSize", default=0)
         total_count = _int_from_dict(response, "totalCount", default=0)
+        items = response.get("items")
+        if items is not None and not items:
+            return False
 
     if page_no < 1 or page_size < 1 or total_count < 1:
         return False
@@ -70,10 +75,9 @@ def iter_pages(
         if max_items is not None and items_seen >= max_items:
             return
 
-        next_page = next_page_no(page_resp)
-        if next_page is None:
+        if not has_next_page(page_resp):
             return
-        page_no = next_page
+        page_no += 1
 
 
 async def async_iter_pages(
@@ -108,12 +112,13 @@ async def async_iter_pages(
         if max_items is not None and items_seen >= max_items:
             return
 
-        next_page = next_page_no(page_resp)
-        if next_page is None:
+        if not has_next_page(page_resp):
             return
-        page_no = next_page
+        page_no += 1
 
 
 def _int_from_dict(body: Mapping[str, Any], key: str, *, default: int) -> int:
+    if key not in body:
+        raise KeyError(f"missing pagination field {key!r} in response mapping")
     val = int_or_none(body.get(key))
     return val if val is not None else default

@@ -124,6 +124,8 @@ class ArticleDetail(ArticleListItem):
 class PaginatedResponse(EnckcModel, Generic[ItemT]):
     """페이지네이션 응답 래퍼 모델."""
 
+    model_config = ConfigDict(frozen=True, extra="ignore", populate_by_name=True)
+
     current_count: int = Field(alias="currentCount")
     total_count: int = Field(alias="totalCount")
     page_no: int = Field(alias="pageNo")

@@ -19,9 +19,14 @@ def int_or_none(value: Any) -> int | None:
 
     if value is None:
         return None
+    text = str(value).strip()
     try:
-        return int(str(value).strip())
+        return int(text)
     except (TypeError, ValueError):
+        pass
+    try:
+        return int(float(text))
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
