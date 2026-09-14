@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from enckc.cli import main
 from enckc.models import ArticleDetail, ArticleListItem, PaginatedResponse
@@ -12,6 +12,9 @@ from enckc.models import ArticleDetail, ArticleListItem, PaginatedResponse
 @patch("enckc.cli.EnckcClient")
 def test_cli_articles_list(mock_client_cls, capsys):
     mock_client = MagicMock()
+    mock_client.aclose = AsyncMock()
+    mock_client.articles.list = AsyncMock()
+    mock_client.articles.get = AsyncMock()
     mock_client_cls.return_value = mock_client
     mock_client.articles.list.return_value = PaginatedResponse[ArticleListItem](
         currentCount=1,
@@ -33,6 +36,9 @@ def test_cli_articles_list(mock_client_cls, capsys):
 @patch("enckc.cli.EnckcClient")
 def test_cli_article_get(mock_client_cls, capsys):
     mock_client = MagicMock()
+    mock_client.aclose = AsyncMock()
+    mock_client.articles.list = AsyncMock()
+    mock_client.articles.get = AsyncMock()
     mock_client_cls.return_value = mock_client
     mock_client.articles.get.return_value = ArticleDetail(
         eid="E0029849",

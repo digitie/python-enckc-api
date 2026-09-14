@@ -2,12 +2,12 @@
 
 ## 목표
 
-`python-enckc-api`는 한국학중앙연구원(AKS) 한국민족문화대백과사전(Encykorea) OpenAPI를 위한 Python 클라이언트입니다. import package 이름은 `enckc`이며, `httpx` 기반 동기(`EnckcClient`)/비동기(`AsyncEnckcClient`) 클라이언트, 불변 Pydantic v2 응답 모델, 자동 페이지네이션 순회자, `enckc` CLI를 제공합니다. 세부 API 명세는 `enckc-api.md`, 구현 불변조건은 `SKILL.md`, 아키텍처 결정은 `docs/decisions.md`를 함께 확인합니다.
+`python-enckc-api`는 한국학중앙연구원(AKS) 한국민족문화대백과사전(Encykorea) OpenAPI를 위한 Python 클라이언트입니다. import package 이름은 `enckc`이며, `httpx` 기반 비동기 전용 `EnckcClient`, 불변 Pydantic v2 응답 모델, 자동 페이지네이션 순회자, `enckc` CLI를 제공합니다. 세부 API 명세는 `enckc-api.md`, 구현 불변조건은 `SKILL.md`, 아키텍처 결정은 `docs/decisions.md`를 함께 확인합니다.
 
 ## Think Before Coding
 
 - 변경 전 `enckc-api.md`(API 규격)와 `docs/decisions.md`(ADR)를 확인해 기존 계약을 깨지 않는지 확인할 것.
-- 동기/비동기 두 클라이언트에 동시에 영향을 주는 변경인지 `client.py`의 대칭 구조를 기준으로 먼저 파악할 것.
+- 비동기 서비스·디버그·CLI의 await 연결과 공유 TPS 예산을 확인할 것.
 - 204 No Content, 빈 검색 결과, 스키마 검증 실패 등 이미 합의된 엣지케이스 처리 방식을 재확인 없이 바꾸지 말 것.
 
 ## Simplicity First
@@ -25,7 +25,7 @@
 ## Goal-Driven Execution
 
 - 작업 완료 기준은 "테스트가 통과한다"가 아니라 "요청된 동작이 mock 기반 테스트로 검증됨"으로 정의할 것.
-- 6개 엔드포인트 중 일부만 변경하더라도 동기/비동기/CLI 3면의 대칭성이 깨지지 않았는지 확인할 것.
+- 6개 엔드포인트 중 일부만 변경하더라도 비동기 서비스/디버그/CLI의 계약이 깨지지 않았는지 확인할 것.
 - 사용자가 명시적으로 요청하지 않은 범위(예: `examples/` Streamlit 디버그 UI)까지 손대지 말 것.
 
 ## Practical Bias
@@ -71,12 +71,12 @@
 
 ## 모듈 지도
 
-- `src/enckc/client.py`: `EnckcClient`, `AsyncEnckcClient`, `ArticlesService`, `MediasService`
+- `src/enckc/client.py`: `EnckcClient`, `ArticlesService`, `MediasService`
 - `src/enckc/models.py`: frozen Pydantic v2 모델 (`ArticleListItem`, `ArticleDetail`, `MediaItem`, `PaginatedResponse`)
-- `src/enckc/_http.py`: `httpx` 동기/비동기 세션 생성, 지수 백오프 재시도, 상태 코드 매핑
+- `src/enckc/_http.py`: `httpx.AsyncClient` 세션 생성과 공통 버킷 송신, 지수 백오프 재시도, 상태 코드 매핑
 - `src/enckc/_credentials.py`: 인증키 정규화와 `.env`/`.env.local` 로딩
 - `src/enckc/exceptions.py`: 계층적 `EnckcError` 예외 클래스
-- `src/enckc/pagination.py`: `iter_pages`, `async_iter_pages`, `has_next_page`, `next_page_no`
+- `src/enckc/pagination.py`: `iter_pages`(비동기 순회), `has_next_page`, `next_page_no`
 - `src/enckc/cli.py`: `enckc` 명령행 도구
 - `src/enckc/catalog.py`: `get_api_catalog`/`get_api_catalog_entry` API 카탈로그 및 파라미터 메타데이터
   (`required_params`/`optional_params`), `EnckcClient.debug_fetch()`가 라우팅에 사용

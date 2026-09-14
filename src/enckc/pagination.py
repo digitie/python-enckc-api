@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from typing import Any, TypeVar
 
 from ._parsing import int_or_none
@@ -43,45 +43,10 @@ def next_page_no(response: PaginatedResponse[Any] | Mapping[str, Any]) -> int | 
     return _int_from_dict(response, "pageNo", default=1) + 1
 
 
-def iter_pages(
-    fetch_page: Callable[[int, int], PaginatedResponse[T]],
-    *,
-    page_size: int = 20,
-    start_page: int = 1,
-    max_pages: int = 100,
-    max_items: int | None = None,
-) -> Iterator[PaginatedResponse[T]]:
-    """페이지를 순회하며 `PaginatedResponse[T]`를 생성합니다."""
-
-    if start_page < 1:
-        raise ValueError("start_page must be >= 1")
-    if page_size < 1:
-        raise ValueError("page_size must be >= 1")
-    if max_pages < 1:
-        raise ValueError("max_pages must be >= 1")
-    if max_items is not None and max_items < 1:
-        raise ValueError("max_items must be >= 1")
-
-    page_no = start_page
-    pages_seen = 0
-    items_seen = 0
-
-    while pages_seen < max_pages:
-        page_resp = fetch_page(page_no, page_size)
-        yield page_resp
-
-        pages_seen += 1
-        items_seen += len(page_resp.items)
-        if max_items is not None and items_seen >= max_items:
-            return
-
-        if not has_next_page(page_resp):
-            return
-        page_no += 1
 
 
-async def async_iter_pages(
-    afetch_page: Callable[[int, int], Awaitable[PaginatedResponse[T]]],
+async def iter_pages(
+    fetch_page: Callable[[int, int], Awaitable[PaginatedResponse[T]]],
     *,
     page_size: int = 20,
     start_page: int = 1,
@@ -104,7 +69,7 @@ async def async_iter_pages(
     items_seen = 0
 
     while pages_seen < max_pages:
-        page_resp = await afetch_page(page_no, page_size)
+        page_resp = await fetch_page(page_no, page_size)
         yield page_resp
 
         pages_seen += 1

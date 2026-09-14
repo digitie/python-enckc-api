@@ -75,15 +75,15 @@ def test_get_api_catalog_entry_unknown_key_raises():
         get_api_catalog_entry("does_not_exist")
 
 
-def test_debug_fetch_list_endpoint_success():
+async def test_debug_fetch_list_endpoint_success():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/articles"
         assert request.headers["x-api-key"] == "test-key"
         return httpx.Response(200, json=SAMPLE_ARTICLES_LIST)
 
-    session = httpx.Client(transport=httpx.MockTransport(handler))
-    with EnckcClient(api_key="test-key", session=session) as client:
-        run = client.debug_fetch("articles_list", params={"p": 1, "ps": 20})
+    session = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        run = (await client.debug_fetch("articles_list", params={"p": 1, "ps": 20}))
 
     assert isinstance(run, DebugRun)
     assert run.error is None
@@ -95,63 +95,63 @@ def test_debug_fetch_list_endpoint_success():
     assert run.request["headers"]["X-API-Key"] == "***REDACTED***"
 
 
-def test_debug_fetch_search_endpoint_routes_query_param():
+async def test_debug_fetch_search_endpoint_routes_query_param():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/articles/search"
         assert request.url.params["q"] == "세종"
         return httpx.Response(200, json=SAMPLE_ARTICLES_LIST)
 
-    session = httpx.Client(transport=httpx.MockTransport(handler))
-    with EnckcClient(api_key="test-key", session=session) as client:
-        run = client.debug_fetch("articles_search", params={"q": "세종", "p": 1, "ps": 20})
+    session = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        run = (await client.debug_fetch("articles_search", params={"q": "세종", "p": 1, "ps": 20}))
 
     assert run.error is None
     assert run.processed[0].eid == "E0000002"
 
 
-def test_debug_fetch_detail_endpoint_success():
+async def test_debug_fetch_detail_endpoint_success():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/articles/E0029849"
         return httpx.Response(200, json=SAMPLE_ARTICLE_DETAIL)
 
-    session = httpx.Client(transport=httpx.MockTransport(handler))
-    with EnckcClient(api_key="test-key", session=session) as client:
-        run = client.debug_fetch("article_detail", params={"eid": "E0029849"})
+    session = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        run = (await client.debug_fetch("article_detail", params={"eid": "E0029849"}))
 
     assert run.error is None
     assert run.processed["headword"] == "세조"
 
 
-def test_debug_fetch_detail_endpoint_204_no_content():
+async def test_debug_fetch_detail_endpoint_204_no_content():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(204, content=b"")
 
-    session = httpx.Client(transport=httpx.MockTransport(handler))
-    with EnckcClient(api_key="test-key", session=session) as client:
-        run = client.debug_fetch("article_detail", params={"eid": "NONEXISTENT"})
+    session = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        run = (await client.debug_fetch("article_detail", params={"eid": "NONEXISTENT"}))
 
     assert run.error is None
     assert run.parsed is None
     assert run.processed is None
 
 
-def test_debug_fetch_missing_path_param_returns_structured_error():
-    session = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
-    with EnckcClient(api_key="test-key", session=session) as client:
-        run = client.debug_fetch("article_detail", params={})
+async def test_debug_fetch_missing_path_param_returns_structured_error():
+    session = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(200)))
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        run = (await client.debug_fetch("article_detail", params={}))
 
     assert run.error is not None
     assert run.error["type"] == "ValueError"
     assert "traceback" in run.error
 
 
-def test_debug_fetch_auth_error_becomes_structured_error():
+async def test_debug_fetch_auth_error_becomes_structured_error():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"message": "invalid key"})
 
-    session = httpx.Client(transport=httpx.MockTransport(handler))
-    with EnckcClient(api_key="bad-key", session=session) as client:
-        run = client.debug_fetch("articles_list", params={"p": 1, "ps": 20})
+    session = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    async with EnckcClient(api_key="bad-key", session=session) as client:
+        run = (await client.debug_fetch("articles_list", params={"p": 1, "ps": 20}))
 
     assert run.error is not None
     assert run.error["type"] == "EnckcAuthError"

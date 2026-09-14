@@ -6,7 +6,7 @@ import pytest
 
 from enckc import EnckcClient
 from enckc.models import ArticleListItem, PaginatedResponse
-from enckc.pagination import async_iter_pages, has_next_page, iter_pages, next_page_no
+from enckc.pagination import has_next_page, iter_pages, next_page_no
 
 
 def _mock_page(page_no: int, total_pages: int = 3) -> PaginatedResponse[ArticleListItem]:
@@ -33,16 +33,16 @@ def test_has_next_page_and_next_page_no():
     assert next_page_no(page3) is None
 
 
-def test_iter_pages():
-    pages = list(iter_pages(lambda p, ps: _mock_page(p, total_pages=3), page_size=2))
+async def test_iter_pages():
+    pages = [item async for item in iter_pages(_fetch_three_pages, page_size=2)]
     assert len(pages) == 3
     assert pages[0].page_no == 1
     assert pages[1].page_no == 2
     assert pages[2].page_no == 3
 
 
-def test_iter_pages_max_items():
-    pages = list(iter_pages(lambda p, ps: _mock_page(p, total_pages=3), page_size=2, max_items=3))
+async def test_iter_pages_max_items():
+    pages = [item async for item in iter_pages(_fetch_three_pages, page_size=2, max_items=3)]
     assert len(pages) == 2
 
 
@@ -51,16 +51,16 @@ async def test_async_iter_pages():
     async def fetch(p: int, ps: int) -> PaginatedResponse[ArticleListItem]:
         return _mock_page(p, total_pages=2)
 
-    pages = [p async for p in async_iter_pages(fetch, page_size=2)]
+    pages = [p async for p in iter_pages(fetch, page_size=2)]
     assert len(pages) == 2
     assert pages[1].page_no == 2
 
 
-def test_iter_all_exact_max_items():
+async def test_iter_all_exact_max_items():
     client = EnckcClient(api_key="test-key")
 
     # mock articles.list to return pages of 20 items
-    def mock_list(page: int = 1, page_size: int = 20):
+    async def mock_list(page: int = 1, page_size: int = 20):
         return PaginatedResponse[ArticleListItem](
             currentCount=20,
             totalCount=100,
@@ -73,8 +73,12 @@ def test_iter_all_exact_max_items():
         )
 
     client.articles.list = mock_list  # type: ignore[assignment]
-    items = list(client.articles.iter_all(page_size=20, max_items=5))
+    items = [item async for item in client.articles.iter_all(page_size=20, max_items=5)]
     # Must yield exactly 5 items, not 20!
     assert len(items) == 5
     assert items[0].eid == "E1_0"
     assert items[4].eid == "E1_4"
+
+
+async def _fetch_three_pages(p: int, ps: int) -> PaginatedResponse[ArticleListItem]:
+    return _mock_page(p, total_pages=3)

@@ -4,7 +4,7 @@
 ![GPL-3.0-or-later 라이선스](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)
 ![Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)
 
-한국학중앙연구원(AKS) **한국민족문화대백과사전**(Encyclopedia of Korean Culture, Encykorea) OpenAPI를 Python에서 쉽고 안전하게 활용하기 위한 공식 규격 기반의 비공식 클라이언트 라이브러리입니다. `enckc`라는 import 패키지를 통해 전체 항목 조회, 키워드 검색, 항목 본문 상세(EID), 미디어 목록/검색/상세(MID) 등 6개 핵심 API 엔드포인트를 동기/비동기로 완전하게 지원합니다.
+한국학중앙연구원(AKS) **한국민족문화대백과사전**(Encyclopedia of Korean Culture, Encykorea) OpenAPI를 Python에서 쉽고 안전하게 활용하기 위한 공식 규격 기반의 비공식 클라이언트 라이브러리입니다. `enckc`라는 import 패키지를 통해 전체 항목 조회, 키워드 검색, 항목 본문 상세(EID), 미디어 목록/검색/상세(MID) 등 6개 핵심 API 엔드포인트를 비동기 전용으로 지원합니다.
 
 최근 변경 사항은 [CHANGELOG.md](CHANGELOG.md)를 참고하세요.
 
@@ -14,8 +14,7 @@
 
 | 표면 | 진입점 | 설명 |
 |---|---|---|
-| 동기 클라이언트 | `enckc.EnckcClient` | `httpx` 기반 동기 클라이언트. `client.articles.*`, `client.medias.*` |
-| 비동기 클라이언트 | `enckc.EnckcClient.aio()` / `AsyncEnckcClient` | 동일한 파사드 구조의 비동기 클라이언트 |
+| 비동기 클라이언트 | `enckc.EnckcClient` | `httpx.AsyncClient` 기반. `await client.articles.*`, `await client.medias.*` |
 | CLI | `enckc` 명령행 도구 | 터미널에서 즉시 검색/조회 (`enckc search-articles`, `enckc article` 등) |
 | 디버그 UI | `examples/streamlit_debug_ui.py` | Streamlit 기반 실시간 카탈로그 탐색 도구 (`debug-ui` extra 필요) |
 
@@ -79,22 +78,22 @@ pip install -e ".[dev,debug-ui]"
 from enckc import EnckcClient
 
 # .env.local 또는 환경변수에서 ENCKC_API_KEY 자동 로드
-with EnckcClient.from_env() as client:
+async with EnckcClient.from_env(max_rps=5) as client:
     # 항목 검색 (예: '세종')
-    search_result = client.articles.search(query="세종", page=1, page_size=5)
+    search_result = await client.articles.search(query="세종", page=1, page_size=5)
     print(f"총 검색 건수: {search_result.total_count}건")
     for item in search_result.items:
         print(f"[{item.eid}] {item.headword} ({item.origin or ''}) - {item.definition}")
 
     # 항목 상세 본문 조회 (예: 세조 E0029849) — 존재하지 않으면 None 반환
-    article = client.articles.get(eid="E0029849")
+    article = await client.articles.get(eid="E0029849")
     if article:
         print(f"\n=== {article.headword} 상세 ===")
         print(f"시대: {article.era}")
         print(f"본문 길이: {len(article.body or '')}자")
 ```
 
-위 예제는 동기 클라이언트의 핵심 흐름만 다룹니다. 비동기 클라이언트(`AsyncEnckcClient`), 대용량 스트리밍 순회(`iter_all`), 미디어 API, CLI 사용법은 [enckc-api.md](enckc-api.md)와 아래 CLI/응답 모델 절을 참고하세요.
+예제는 async 함수 안에서 실행합니다. 페이지와 항목 순회는 `async for`, 종료는 `await client.aclose()`를 사용합니다. 기존 `AsyncEnckcClient`/`aio()`는 제거하고 `EnckcClient`로 통합했습니다. TPS 설정과 버킷 공유는 [docs/async-tps.md](docs/async-tps.md)를 참고하세요. 미디어 API와 CLI 사용법은 [enckc-api.md](enckc-api.md)와 아래 CLI/응답 모델 절을 참고하세요.
 
 ---
 
@@ -166,7 +165,7 @@ EnckcError (기본 예외)
 ## 디버그 UI 실행
 
 카탈로그(`enckc.get_api_catalog()`)의 `required_params`/`optional_params` 메타데이터로 입력
-폼을 자동 생성하고, `EnckcClient.debug_fetch()`로 요청을 실행해 Raw Response/Pydantic
+폼을 자동 생성하고, `await client.debug_fetch()`로 요청을 실행해 Raw Response/Pydantic
 Model/Processed Result/Validation Errors/Debug Trace/Fixture 저장까지 6개 탭에서 확인할 수
 있습니다.
 

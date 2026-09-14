@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import os
 import sys
 from pathlib import Path
@@ -27,6 +29,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - 선택 실행 도구
 
 from enckc import (
     ENCKC_ENV_NAMES,
+    DebugRun,
     EnckcClient,
     first_env_value,
     get_api_catalog,
@@ -144,16 +147,16 @@ def _raw_response_tab(selected: dict[str, Any], api_key: str, *, timeout: float)
         )
         return
 
-    client: EnckcClient | None = None
+    async def fetch() -> DebugRun:
+        async with EnckcClient(api_key=api_key, timeout=timeout, retries=0) as client:
+            return await client.debug_fetch(selected["service_key"], params=params)
+
     try:
-        client = EnckcClient(api_key=api_key, timeout=timeout, retries=0)
-        run = client.debug_fetch(selected["service_key"], params=params)
-    except Exception as exc:  # noqa: BLE001 - 클라이언트 생성 실패 등 사전 검증 단계 오류
+        run = asyncio.run(fetch())
+    except Exception as exc:
         st.error(str(exc))
         return
-    finally:
-        if client is not None:
-            client.close()
+
 
     _store_run(selected, run)
     if run.error:

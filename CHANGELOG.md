@@ -1,5 +1,9 @@
 # CHANGELOG.md
 
+## 미배포 — 비동기/TPS 전환
+
+조회·디버그·페이지 순회·종료를 비동기 전용으로 통합했다. `max_rps`와 공유 `AsyncTokenBucket`을 추가하고 CLI/UI를 전환했다.
+
 모든 주목할 만한 변경 사항은 이 파일에 기록됩니다.
 
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)을 따르며,

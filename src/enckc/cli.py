@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import sys
 from collections.abc import Sequence
@@ -13,7 +14,7 @@ from .client import EnckcClient
 from .exceptions import EnckcError
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+async def _amain(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="enckc",
         description="한국민족문화대백과사전(Encykorea) OpenAPI 명령행 도구",
@@ -93,19 +94,19 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         if args.command == "articles":
-            res_arts = client.articles.list(page=args.page, page_size=args.page_size)
+            res_arts = (await client.articles.list(page=args.page, page_size=args.page_size))
             _print_json(res_arts)
             return 0
 
         if args.command == "search-articles":
-            res_search_art = client.articles.search(
+            res_search_art = (await client.articles.search(
                 args.query, page=args.page, page_size=args.page_size
-            )
+            ))
             _print_json(res_search_art)
             return 0
 
         if args.command == "article":
-            article = client.articles.get(args.eid)
+            article = (await client.articles.get(args.eid))
             if article is None:
                 print(
                     json.dumps(
@@ -117,19 +118,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         if args.command == "medias":
-            res_meds = client.medias.list(page=args.page, page_size=args.page_size)
+            res_meds = (await client.medias.list(page=args.page, page_size=args.page_size))
             _print_json(res_meds)
             return 0
 
         if args.command == "search-medias":
-            res_search_med = client.medias.search(
+            res_search_med = (await client.medias.search(
                 args.query, page=args.page, page_size=args.page_size
-            )
+            ))
             _print_json(res_search_med)
             return 0
 
         if args.command == "media":
-            media = client.medias.get(args.mid)
+            media = (await client.medias.get(args.mid))
             if media is None:
                 print(
                     json.dumps(
@@ -145,7 +146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps({"error": str(exc), **exc.metadata}, ensure_ascii=False, indent=2))
         return 1
     finally:
-        client.close()
+        (await client.aclose())
 
 
 def _print_json(value: Any) -> None:
@@ -166,6 +167,10 @@ def _jsonable(value: Any) -> Any:
     if is_dataclass(value):
         return asdict(value)  # type: ignore[arg-type]
     return value
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    return asyncio.run(_amain(argv))
 
 
 if __name__ == "__main__":
