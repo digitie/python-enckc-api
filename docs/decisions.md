@@ -6,7 +6,7 @@
 
 ## D-001: `requests` 대신 `httpx` 기반 동기/비동기 통합 전송 계층을 사용한다
 
-- 상태: accepted
+- 상태: superseded by D-005
 - 날짜: 2026-08-29
 
 ### 컨텍스트
@@ -95,3 +95,14 @@ API 응답을 그대로 노출하는 모델이 호출부에서 변경 가능하�
 ### 결과
 
 - `src/enckc/client.py`에 `ArticlesService`, `MediasService`가 정의되어 있고, CLI(`enckc search-articles`, `enckc article` 등)도 동일한 도메인 구분을 따른다.
+
+## D-005: 비동기 전용 클라이언트와 공통 토큰 버킷
+
+- 상태: accepted
+- 날짜: 2026-09-14
+- supersedes: D-001의 동기/비동기 병행 제공
+
+사용자 요청에 따라 `EnckcClient`를 native async 구현 하나로 통합한다. 6개 API와
+204/빈 검색/불변 모델 계약을 보존하고 디버그·페이지 순회도 비동기로 제공한다.
+CLI와 Streamlit은 애플리케이션 진입점에서만 `asyncio.run`을 사용한다.
+모든 실제 요청·재시도·redirect 송신은 같은 `AsyncTokenBucket`을 소비한다.

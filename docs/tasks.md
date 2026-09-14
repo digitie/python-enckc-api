@@ -2,7 +2,7 @@
 
 ## 완료된 작업
 - [x] Encykorea OpenAPI 엔드포인트 6종 구현
-- [x] 동기/비동기 클라이언트 인터페이스 구축
+- [x] 비동기 전용 클라이언트와 공통 TPS 인터페이스 구축
 - [x] Pydantic v2 frozen 응답 모델 설계
 - [x] 204 No Content 대응 및 예외 계층 정의
 - [x] Streamlit 디버그 화면 및 CLI 개발

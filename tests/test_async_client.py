@@ -1,11 +1,11 @@
-"""AsyncEnckcClient 비동기 클라이언트 단위 테스트."""
+"""EnckcClient 비동기 클라이언트 단위 테스트."""
 
 from __future__ import annotations
 
 import httpx
 import pytest
 
-from enckc import AsyncEnckcClient
+from enckc import EnckcClient
 from enckc.exceptions import EnckcServerError
 
 SAMPLE_ARTICLES = {
@@ -70,7 +70,7 @@ async def test_async_articles_and_search():
     transport = httpx.MockTransport(handler)
     session = httpx.AsyncClient(transport=transport)
 
-    async with AsyncEnckcClient(api_key="test-key", async_session=session) as client:
+    async with EnckcClient(api_key="test-key", session=session) as client:
         res = await client.articles.list()
         assert res.total_count == 1
         assert res.items[0].headword == "ㄱ"
@@ -105,7 +105,7 @@ async def test_async_medias():
     transport = httpx.MockTransport(handler)
     session = httpx.AsyncClient(transport=transport)
 
-    async with AsyncEnckcClient(api_key="test-key", async_session=session) as client:
+    async with EnckcClient(api_key="test-key", session=session) as client:
         medias = await client.medias.list()
         assert len(medias.items) == 1
 
@@ -128,7 +128,7 @@ async def test_async_server_error_500():
     transport = httpx.MockTransport(handler)
     session = httpx.AsyncClient(transport=transport)
 
-    async with AsyncEnckcClient(api_key="test-key", async_session=session) as client:
+    async with EnckcClient(api_key="test-key", session=session) as client:
         with pytest.raises(EnckcServerError) as exc_info:
             await client.articles.list()
         assert exc_info.value.status_code == 500

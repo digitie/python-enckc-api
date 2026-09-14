@@ -19,11 +19,11 @@ from enckc.exceptions import (
 )
 
 
-def test_build_client():
+async def test_build_client():
     client = build_client(headers={"X-Custom": "val"})
     assert "User-Agent" in client.headers
     assert client.headers["X-Custom"] == "val"
-    client.close()
+    (await client.aclose())
 
 
 def test_raise_for_http_error_mappings():
@@ -58,7 +58,7 @@ def test_raise_for_network_error():
     assert exc_info.value.retryable is True
 
 
-def test_get_with_retries_recovers():
+async def test_get_with_retries_recovers():
     calls = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -68,9 +68,9 @@ def test_get_with_retries_recovers():
             return httpx.Response(500, request=request)
         return httpx.Response(200, json={"success": True}, request=request)
 
-    client = httpx.Client(transport=httpx.MockTransport(handler))
-    resp = get_with_retries(
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    resp = (await get_with_retries(
         client, "https://devin.aks.ac.kr:8080/api/articles", retries=2, backoff_factor=0.01
-    )
+    ))
     assert resp.status_code == 200
     assert calls == 2

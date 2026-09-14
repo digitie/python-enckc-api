@@ -25,3 +25,5 @@ description: 한국학중앙연구원 한국민족문화대백과사전(Encykore
 8. 기본 테스트는 외부 네트워크 호출 없이 mock/fixture로 검증하며, 실서버 호출은 `@pytest.mark.integration`으로 분리합니다.
 9. 문서의 파일 위치 정보는 항상 프로젝트 루트 기준 상대 경로로 작성합니다.
 10. Python docstring과 주석은 한글로 작성합니다.
+11. 공개 네트워크 작업은 비동기 전용 `EnckcClient`를 사용합니다. 서비스·디버그·순회의
+    모든 송신과 재시도는 주입된 공통 `AsyncTokenBucket` 예산을 공유합니다.

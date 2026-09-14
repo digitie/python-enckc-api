@@ -5,7 +5,7 @@
 - [x] 프로젝트 패키징 설정 (`pyproject.toml`, `.env.example`, `.env.local`)
 - [x] 공통 전송 계층 및 예외 처리 (`_http.py`, `exceptions.py`, `metadata.py`)
 - [x] Pydantic v2 불변 모델 정의 (`models.py`)
-- [x] 동기/비동기 클라이언트 구현 (`client.py`)
+- [x] 비동기 전용 클라이언트와 공통 TPS 구현 (`client.py`)
 - [x] 자동 페이지네이션 순회자 (`pagination.py`)
 - [x] CLI 명령행 도구 (`cli.py`)
 - [x] 디버그 카탈로그 UI (`examples/streamlit_debug_ui.py`, `src/enckc/catalog.py`, `src/enckc/debug.py`)

@@ -128,7 +128,7 @@ SAMPLE_MEDIAS_LIST = {
 }
 
 
-def test_articles_list_success():
+async def test_articles_list_success():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["x-api-key"] == "test-key"
         assert request.url.path == "/api/articles"
@@ -137,10 +137,10 @@ def test_articles_list_success():
         return httpx.Response(200, json=SAMPLE_ARTICLES_LIST)
 
     transport = httpx.MockTransport(handler)
-    session = httpx.Client(transport=transport)
+    session = httpx.AsyncClient(transport=transport)
 
-    with EnckcClient(api_key="test-key", session=session) as client:
-        resp = client.articles.list(page=1, page_size=20)
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        resp = (await client.articles.list(page=1, page_size=20))
         assert resp.total_count == 100
         assert len(resp.items) == 1
         assert resp.items[0].headword == "ㄱ"
@@ -148,31 +148,31 @@ def test_articles_list_success():
         assert resp.items[0].head_media.caption == "훈민정음언해 / ㄱ"
 
 
-def test_articles_search_success():
+async def test_articles_search_success():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/articles/search"
         assert request.url.params["q"] == "세종"
         return httpx.Response(200, json=SAMPLE_ARTICLES_LIST)
 
     transport = httpx.MockTransport(handler)
-    session = httpx.Client(transport=transport)
+    session = httpx.AsyncClient(transport=transport)
 
-    with EnckcClient(api_key="test-key", session=session) as client:
-        resp = client.articles.search(query="세종")
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        resp = (await client.articles.search(query="세종"))
         assert len(resp.items) == 1
         assert resp.items[0].eid == "E0000002"
 
 
-def test_article_detail_success():
+async def test_article_detail_success():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/articles/E0029849"
         return httpx.Response(200, json=SAMPLE_ARTICLE_DETAIL)
 
     transport = httpx.MockTransport(handler)
-    session = httpx.Client(transport=transport)
+    session = httpx.AsyncClient(transport=transport)
 
-    with EnckcClient(api_key="test-key", session=session) as client:
-        article = client.articles.get("E0029849")
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        article = (await client.articles.get("E0029849"))
         assert article is not None
         assert article.headword == "세조"
         assert article.summary == "세조는 조선의 제7대 왕이다."
@@ -180,45 +180,45 @@ def test_article_detail_success():
         assert article.related_articles[0].headword == "문종"
 
 
-def test_article_detail_not_found_204():
+async def test_article_detail_not_found_204():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(204, content=b"")
 
     transport = httpx.MockTransport(handler)
-    session = httpx.Client(transport=transport)
+    session = httpx.AsyncClient(transport=transport)
 
-    with EnckcClient(api_key="test-key", session=session) as client:
-        article = client.articles.get("NONEXISTENT")
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        article = (await client.articles.get("NONEXISTENT"))
         assert article is None
 
 
-def test_medias_list_and_search():
+async def test_medias_list_and_search():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=SAMPLE_MEDIAS_LIST)
 
     transport = httpx.MockTransport(handler)
-    session = httpx.Client(transport=transport)
+    session = httpx.AsyncClient(transport=transport)
 
-    with EnckcClient(api_key="test-key", session=session) as client:
-        resp_list = client.medias.list()
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        resp_list = (await client.medias.list())
         assert resp_list.total_count == 50
         assert len(resp_list.items) == 1
         assert resp_list.items[0].caption == "사례편람 / 자최관"
 
-        resp_search = client.medias.search("사례편람")
+        resp_search = (await client.medias.search("사례편람"))
         assert len(resp_search.items) == 1
 
 
-def test_media_detail_success():
+async def test_media_detail_success():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == "/api/medias/0bad737c-471b-4fd5-86cf-10774faeaaa7"
         return httpx.Response(200, json=SAMPLE_MEDIA_ITEM)
 
     transport = httpx.MockTransport(handler)
-    session = httpx.Client(transport=transport)
+    session = httpx.AsyncClient(transport=transport)
 
-    with EnckcClient(api_key="test-key", session=session) as client:
-        media = client.medias.get("0bad737c-471b-4fd5-86cf-10774faeaaa7")
+    async with EnckcClient(api_key="test-key", session=session) as client:
+        media = (await client.medias.get("0bad737c-471b-4fd5-86cf-10774faeaaa7"))
         assert media is not None
         assert media.mid == "0bad737c-471b-4fd5-86cf-10774faeaaa7"
         assert media.media_type == "사진"
@@ -227,15 +227,15 @@ def test_media_detail_success():
         assert media.raw is not None
 
 
-def test_auth_error_401():
+async def test_auth_error_401():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"title": "Unauthorized", "status": 401})
 
     transport = httpx.MockTransport(handler)
-    session = httpx.Client(transport=transport)
+    session = httpx.AsyncClient(transport=transport)
 
-    with EnckcClient(api_key="bad-key", session=session) as client:
+    async with EnckcClient(api_key="bad-key", session=session) as client:
         with pytest.raises(EnckcAuthError) as exc_info:
-            client.articles.list()
+            (await client.articles.list())
         assert exc_info.value.status_code == 401
         assert exc_info.value.failure_kind == "auth"

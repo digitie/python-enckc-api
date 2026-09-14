@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import random
-import time
 from typing import Any, NoReturn
 
 import httpx
 
+from ._httpx import send_after_token
+from ._ratelimit import AsyncTokenBucket
 from .exceptions import (
     EnckcAuthError,
     EnckcNotFoundError,
@@ -111,15 +112,7 @@ def raise_for_enckc_network_error(
     ) from None
 
 
-def build_client(*, headers: dict[str, str] | None = None) -> httpx.Client:
-    """기본 동기 httpx 클라이언트를 생성합니다."""
-    default_headers = {"User-Agent": DEFAULT_USER_AGENT}
-    if headers:
-        default_headers.update(headers)
-    return httpx.Client(follow_redirects=False, headers=default_headers)
-
-
-def build_async_client(*, headers: dict[str, str] | None = None) -> httpx.AsyncClient:
+def build_client(*, headers: dict[str, str] | None = None) -> httpx.AsyncClient:
     """기본 비동기 httpx 클라이언트를 생성합니다."""
     default_headers = {"User-Agent": DEFAULT_USER_AGENT}
     if headers:
@@ -127,45 +120,7 @@ def build_async_client(*, headers: dict[str, str] | None = None) -> httpx.AsyncC
     return httpx.AsyncClient(follow_redirects=False, headers=default_headers)
 
 
-def get_with_retries(
-    client: httpx.Client,
-    url: str,
-    *,
-    params: dict[str, Any] | None = None,
-    headers: dict[str, str] | None = None,
-    timeout: float = 10.0,
-    retries: int = 3,
-    backoff_factor: float = 0.3,
-) -> httpx.Response:
-    """재시도 로직이 적용된 동기 GET 요청을 수행합니다."""
-
-    attempts = max(1, retries + 1)
-    last_exc: httpx.HTTPError | None = None
-    for attempt in range(attempts):
-        retry_after: float | None = None
-        try:
-            response = client.get(url, params=params, headers=headers, timeout=timeout)
-            response.raise_for_status()
-            return response
-        except httpx.HTTPStatusError as exc:
-            if not _should_retry_status(exc) or attempt >= attempts - 1:
-                raise
-            last_exc = exc
-            retry_after = _retry_after_seconds(exc.response)
-        except httpx.RequestError as exc:
-            if attempt >= attempts - 1:
-                raise
-            last_exc = exc
-        if retry_after is None:
-            retry_after = _backoff_with_jitter(backoff_factor, attempt)
-        time.sleep(retry_after)
-
-    if last_exc is not None:  # pragma: no cover
-        raise last_exc
-    raise RuntimeError("HTTP request failed before it could be attempted")
-
-
-async def async_get_with_retries(
+async def get_with_retries(
     client: httpx.AsyncClient,
     url: str,
     *,
@@ -174,15 +129,21 @@ async def async_get_with_retries(
     timeout: float = 10.0,
     retries: int = 3,
     backoff_factor: float = 0.3,
+    rate_limiter: AsyncTokenBucket | None = None,
 ) -> httpx.Response:
     """재시도 로직이 적용된 비동기 GET 요청을 수행합니다."""
 
+    bucket = rate_limiter if rate_limiter is not None else AsyncTokenBucket()
     attempts = max(1, retries + 1)
     last_exc: httpx.HTTPError | None = None
     for attempt in range(attempts):
         retry_after: float | None = None
         try:
-            response = await client.get(url, params=params, headers=headers, timeout=timeout)
+            request = client.build_request(
+                "GET", url, params=params, headers=headers, timeout=timeout
+            )
+            await bucket.acquire()
+            response = await send_after_token(client, request, bucket)
             response.raise_for_status()
             return response
         except httpx.HTTPStatusError as exc:

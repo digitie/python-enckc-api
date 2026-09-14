@@ -4,8 +4,8 @@
 
 ## 테스트 구조
 
-- `tests/test_client.py`: 동기 클라이언트 단위 테스트 (Mock 기반)
-- `tests/test_async_client.py`: 비동기 클라이언트 단위 테스트 (Mock 기반)
+- `tests/test_client.py`: 공개 클라이언트 비동기 단위 테스트 (Mock 기반)
+- `tests/test_async_client.py`: 비공개 클라이언트 비동기 단위 테스트 (Mock 기반)
 - `tests/test_pydantic_models.py`: Pydantic 응답 모델 검증
 - `tests/test_http.py`: HTTP 재시도, 지수 백오프, 에러 상태 코드 매핑 검증
 - `tests/test_pagination.py`: 페이지네이션 순회 검증
